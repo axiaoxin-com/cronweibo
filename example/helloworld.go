@@ -1,28 +1,3 @@
-# cronweibo
-
-## 简介
-
-该包提供定时发送微博的封装，提供简单的方法便于快速开发定时发送微博的应用，比如定时抓取图片后发送到微博、定时获取特定数据并将其保存到微博等。
-
-通过定义微博任务(`WeiboJob`)，其中包含任务名称(`Name`)，执行周期(`Schedule`)和具体执行的任务函数(`Run`)等信息。
-
-将微博任务注册到 cronweibo 服务后，cronweibo 启动后会将所有注册的任务按其执行周期定时执行该任务中的任务函数，并将其返回的内容发送到微博。
-
-任务函数的定义为`func() (string, io.Reader)`，返回微博文本内容和图片。
-
-## 安装
-
-```
-go get -u github.com/axiaoxin-com/cronweibo
-```
-
-## 使用示例
-
-一个定时发送hello world到微博的应用:
-
-[example/hello_world.go](/example/helloworld.go)
-
-```golang
 package main
 
 import (
@@ -69,13 +44,12 @@ func main() {
 	helloWorldJob := cronweibo.WeiboJob{
 		Name:     "helloworld_job",
 		Schedule: "0 */2 * * * *", // 每2分钟一次
-		Run:   f,
+		Run:      f,
 	}
 
 	// 将任务注册到cronweibo
 	c.RegisterWeiboJobs(helloWorldJob)
 
-	// 运行服务
-	c.Run()
+	// 启动
+	c.Start()
 }
-```
