@@ -22,14 +22,16 @@ func Example_helloWorld() {
 	// 创建配置
 	loc, _ := time.LoadLocation("Asia/Shanghai")
 	config := &cronweibo.Config{
-		WeiboAppkey:      appkey,
-		WeiboAppsecret:   appsecret,
-		WeiboUsername:    username,
-		WeiboPasswd:      passwd,
-		WeiboRedirecturi: redirecturi,
-		WeiboSecurityURL: securityURL,
-		Location:         loc,
-		HTTPServerAddr:   ":2222",
+		WeiboAppkey:       appkey,
+		WeiboAppsecret:    appsecret,
+		WeiboUsername:     username,
+		WeiboPasswd:       passwd,
+		WeiboRedirecturi:  redirecturi,
+		WeiboSecurityURL:  securityURL,
+		Location:          loc,
+		HTTPServerAddr:    ":2222",
+		BasicAuthUsername: "admin",
+		BasicAuthPasswd:   "admin",
 	}
 
 	// 创建定时微博服务

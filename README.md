@@ -45,18 +45,21 @@ func main() {
 	username := os.Getenv("weibo_username")
 	passwd := os.Getenv("weibo_passwd")
 	redirecturi := os.Getenv("weibo_redirect_uri")
-	securityDomain := os.Getenv("weibo_security_domain")
+	securityURL := os.Getenv("weibo_security_url")
 
 	// 创建配置
 	loc, _ := time.LoadLocation("Asia/Shanghai")
 	config := &cronweibo.Config{
-		WeiboAppkey:         appkey,
-		WeiboAppsecret:      appsecret,
-		WeiboUsername:       username,
-		WeiboPasswd:         passwd,
-		WeiboRedirecturi:    redirecturi,
-		WeiboSecurityDomain: securityDomain,
-		Location:            loc,
+		WeiboAppkey:       appkey,
+		WeiboAppsecret:    appsecret,
+		WeiboUsername:     username,
+		WeiboPasswd:       passwd,
+		WeiboRedirecturi:  redirecturi,
+		WeiboSecurityURL:  securityURL,
+		Location:          loc,
+		HTTPServerAddr:    ":2222",
+		BasicAuthUsername: "admin",
+		BasicAuthPasswd:   "admin",
 	}
 
 	// 创建定时微博服务
@@ -71,15 +74,15 @@ func main() {
 	}
 	// 创建任务
 	helloWorldJob := cronweibo.WeiboJob{
-		Name:     "helloworld_job",
+		Name:     "helloworld",
 		Schedule: "0 */2 * * * *", // 每2分钟一次
-		Run:   f,
+		Run:      f,
 	}
 
 	// 将任务注册到cronweibo
 	c.RegisterWeiboJobs(helloWorldJob)
 
-	// 运行服务
-	c.Run()
+	// 启动
+	c.Start()
 }
 ```

@@ -5,6 +5,7 @@
 package cronweibo
 
 import (
+	"crypto/subtle"
 	"fmt"
 	"io"
 	"log"
@@ -18,18 +19,34 @@ import (
 	"github.com/robfig/cron"
 )
 
+// HandlerAuth 为 http.HandlerFunc 包一层 basic auth
+func HandlerAuth(handler http.HandlerFunc, username, passwd string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		rUsername, rPasswd, ok := r.BasicAuth()
+		if !ok || subtle.ConstantTimeCompare([]byte(rUsername), []byte(username)) != 1 || subtle.ConstantTimeCompare([]byte(rPasswd), []byte(passwd)) != 1 {
+			w.Header().Set("WWW-Authenticate", `Basic realm="cronweibo"`)
+			w.WriteHeader(401)
+			w.Write([]byte("You are Unauthorized to access the application.\n"))
+			return
+		}
+		handler(w, r)
+	}
+}
+
 // CronWeibo 定时微博服务定义
 type CronWeibo struct {
-	weibo            *weibo.Weibo
-	token            *weibo.TokenResp
-	tokenCreatedAt   int64
-	tokenUpdateMutex sync.Mutex
-	securityURL      string
-	cron             *cron.Cron
-	weiboJobs        []WeiboJob
-	location         *time.Location
-	httpServer       *http.ServeMux
-	httpServerAddr   string
+	weibo             *weibo.Weibo
+	token             *weibo.TokenResp
+	tokenCreatedAt    int64
+	tokenUpdateMutex  sync.Mutex
+	securityURL       string
+	cron              *cron.Cron
+	weiboJobs         []WeiboJob
+	location          *time.Location
+	httpServer        *http.ServeMux
+	httpServerAddr    string
+	basicAuthUsername string
+	basicAuthPasswd   string
 }
 
 // Config CronWeibo配置定义，New函数的参数
@@ -43,8 +60,12 @@ type Config struct {
 	WeiboRedirecturi   string               // 微博应用的回调地址（必填参数）
 	WeiboSecurityURL   string               // 微博应用的安全链接（必填参数，http:// + 微博应用中配置的安全域名）
 	// cron server 相关配置
-	Location       *time.Location // 指定定时服务的时区（非必填）
-	HTTPServerAddr string         // HTTP 服务运行地址 （非必填），设置后会运行HTTP服务提供 GET 方式请求 http://host:port/jobname 可立即执行任务
+	Location *time.Location // 指定定时服务的时区（非必填）
+
+	// HTTP server 相关配置
+	HTTPServerAddr    string // HTTP 服务运行地址 （非必填），设置后会运行HTTP服务提供 GET 方式请求 http://host:port/jobname 可立即执行任务
+	BasicAuthUsername string // 和 BasicAuthPasswd 同时配置时，会对所有的HTTP接口进行基础认证（非必填）
+	BasicAuthPasswd   string // 和 BasicAuthUsername 同时配置时，会对所有的HTTP接口进行基础认证（非必填）
 }
 
 // WeiboJobFunc 微博任务函数类型声明
@@ -100,11 +121,13 @@ func New(config *Config, weiboJobs ...WeiboJob) (*CronWeibo, error) {
 
 	// 创建CronWeibo
 	cw := &CronWeibo{
-		weibo:       weibo,
-		token:       token,
-		securityURL: config.WeiboSecurityURL,
-		cron:        c,
-		location:    loc,
+		weibo:             weibo,
+		token:             token,
+		securityURL:       config.WeiboSecurityURL,
+		cron:              c,
+		location:          loc,
+		basicAuthUsername: config.BasicAuthUsername,
+		basicAuthPasswd:   config.BasicAuthPasswd,
 	}
 	cw.tokenCreatedAt = cw.Now().Unix()
 
@@ -178,7 +201,7 @@ func (c *CronWeibo) cronFuncFactory(weiboJob WeiboJob) cron.FuncJob {
 }
 
 // handlerFactory 将WeiboJob生产为httpserver的handler
-func (c *CronWeibo) handlerFactory(weiboJob WeiboJob) func(http.ResponseWriter, *http.Request) {
+func (c *CronWeibo) handlerFactory(weiboJob WeiboJob) http.HandlerFunc {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		log.Println("[INFO] cronweibo is doing job:", weiboJob.Name, "from", r.RemoteAddr)
 		// 指定任务获取微博内容
@@ -201,7 +224,7 @@ func (c *CronWeibo) handlerFactory(weiboJob WeiboJob) func(http.ResponseWriter, 
 			return
 		}
 		weiboURL := "http://weibo.com/" + resp.User.ProfileURL
-		response := fmt.Sprintf(`<p>任务: %s 执行完成. 访问 <a href="%s">%s 查看详情</p>`, weiboJob.Name, weiboURL, weiboURL)
+		response := fmt.Sprintf(`<p>任务: %s 执行完成. 访问 <a href="%s">%s</a> 查看详情</p>`, weiboJob.Name, weiboURL, weiboURL)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprintln(w, response)
 		return
@@ -224,13 +247,16 @@ func (c *CronWeibo) RegisterWeiboJobs(weiboJobs ...WeiboJob) {
 		// 注册HTTP接口
 		if c.httpServer != nil {
 			handleFunc := c.handlerFactory(job)
+			if c.basicAuthUsername != "" && c.basicAuthPasswd != "" {
+				handleFunc = HandlerAuth(handleFunc, c.basicAuthUsername, c.basicAuthPasswd)
+			}
 			c.httpServer.HandleFunc("/"+job.Name, handleFunc)
 			handlersList += fmt.Sprintf(`<li><a href="/%s" target="blank">%s</a></li>`, job.Name, job.Name)
 		}
 	}
 	// 如果注册HTTP结构会生成接口列表，根url返回接口列表页面
 	if handlersList != "" {
-		handlersList = "<ul>" + handlersList + "</ul>"
+		handlersList = "<p><b>job list:</b></p><ol>" + handlersList + "</ol>"
 		c.httpServer.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			fmt.Fprintln(w, handlersList)

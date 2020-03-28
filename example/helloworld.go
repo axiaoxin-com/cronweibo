@@ -9,6 +9,7 @@ import (
 	"github.com/axiaoxin-com/cronweibo"
 )
 
+// 定时发送hello world文字到微博示例
 func main() {
 	// 从环境变量获取配置信息
 	appkey := os.Getenv("weibo_app_key")
@@ -21,14 +22,16 @@ func main() {
 	// 创建配置
 	loc, _ := time.LoadLocation("Asia/Shanghai")
 	config := &cronweibo.Config{
-		WeiboAppkey:      appkey,
-		WeiboAppsecret:   appsecret,
-		WeiboUsername:    username,
-		WeiboPasswd:      passwd,
-		WeiboRedirecturi: redirecturi,
-		WeiboSecurityURL: securityURL,
-		Location:         loc,
-		HTTPServerAddr:   ":2222",
+		WeiboAppkey:       appkey,
+		WeiboAppsecret:    appsecret,
+		WeiboUsername:     username,
+		WeiboPasswd:       passwd,
+		WeiboRedirecturi:  redirecturi,
+		WeiboSecurityURL:  securityURL,
+		Location:          loc,
+		HTTPServerAddr:    ":2222",
+		BasicAuthUsername: "admin",
+		BasicAuthPasswd:   "admin",
 	}
 
 	// 创建定时微博服务
