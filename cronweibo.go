@@ -5,8 +5,10 @@
 package cronweibo
 
 import (
+	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -26,20 +28,23 @@ type CronWeibo struct {
 	cron             *cron.Cron
 	weiboJobs        []WeiboJob
 	location         *time.Location
+	httpServer       *http.ServeMux
+	httpServerAddr   string
 }
 
 // Config CronWeibo配置定义，New函数的参数
 type Config struct {
 	// 微博相关配置
-	WeiboUsername       string               // 要发微博的微博登录账号（必填参数，用于模拟登录自动获取授权码）
-	WeiboPasswd         string               // 要发微博的微博登录密码（必填参数，用于模拟登录
-	WeiboPinCrackFuncs  []weibo.CrackPinFunc // 登录验证码破解函数（非必填）
-	WeiboAppkey         string               // 微博应用的appkey（必填参数）
-	WeiboAppsecret      string               // 微博应用的appsecret（必填参数）
-	WeiboRedirecturi    string               // 微博应用的回调地址（必填参数）
-	WeiboSecurityDomain string               // 微博应用的安全域名（必填参数）
-	// cron相关配置
-	Location *time.Location // 指定定时服务的时区（非必填）
+	WeiboUsername      string               // 要发微博的微博登录账号（必填参数，用于模拟登录自动获取授权码）
+	WeiboPasswd        string               // 要发微博的微博登录密码（必填参数，用于模拟登录
+	WeiboPinCrackFuncs []weibo.CrackPinFunc // 登录验证码破解函数（非必填）
+	WeiboAppkey        string               // 微博应用的 appkey （必填参数）
+	WeiboAppsecret     string               // 微博应用的 appsecret （必填参数）
+	WeiboRedirecturi   string               // 微博应用的回调地址（必填参数）
+	WeiboSecurityURL   string               // 微博应用的安全链接（必填参数，http:// + 微博应用中配置的安全域名）
+	// cron server 相关配置
+	Location       *time.Location // 指定定时服务的时区（非必填）
+	HTTPServerAddr string         // HTTP 服务运行地址 （非必填），设置后会运行HTTP服务提供 GET 方式请求 http://host:port/jobname 可立即执行任务
 }
 
 // WeiboJobFunc 微博任务函数类型声明
@@ -97,11 +102,17 @@ func New(config *Config, weiboJobs ...WeiboJob) (*CronWeibo, error) {
 	cw := &CronWeibo{
 		weibo:       weibo,
 		token:       token,
-		securityURL: "http://" + config.WeiboSecurityDomain,
+		securityURL: config.WeiboSecurityURL,
 		cron:        c,
 		location:    loc,
 	}
 	cw.tokenCreatedAt = cw.Now().Unix()
+
+	// 如果配置了HTTPServerAddr，会实例化http server，服务启动后会运行一个http服务提供web api执行任务
+	if config.HTTPServerAddr != "" {
+		cw.httpServer = http.NewServeMux()
+		cw.httpServerAddr = config.HTTPServerAddr
+	}
 	log.Println("[INFO] cronweibo initialize successful.")
 	return cw, nil
 }
@@ -144,7 +155,6 @@ func (c *CronWeibo) UpdateToken() error {
 // cronFuncFactory 将WeiboJob生产为cron的FuncJob
 func (c *CronWeibo) cronFuncFactory(weiboJob WeiboJob) cron.FuncJob {
 	cronFunc := func() {
-		log.Println("[INFO] cronweibo is doing job:", weiboJob.Name)
 		// 指定任务获取微博内容
 		text, pic := weiboJob.Run()
 		// 判断文本中是否存在安全域名，没有则添加到文本内容中
@@ -160,13 +170,48 @@ func (c *CronWeibo) cronFuncFactory(weiboJob WeiboJob) cron.FuncJob {
 		resp, err := c.weibo.StatusesShare(c.token.AccessToken, text, pic)
 		if err != nil {
 			log.Println("[ERROR] weibocron StatusesShare error for job", weiboJob.Name, err, resp)
+			return
 		}
+		log.Println("[INFO] cronweibo job:", weiboJob.Name, "done.")
 	}
 	return cronFunc
 }
 
+// handlerFactory 将WeiboJob生产为httpserver的handler
+func (c *CronWeibo) handlerFactory(weiboJob WeiboJob) func(http.ResponseWriter, *http.Request) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		log.Println("[INFO] cronweibo is doing job:", weiboJob.Name, "from", r.RemoteAddr)
+		// 指定任务获取微博内容
+		text, pic := weiboJob.Run()
+		// 判断文本中是否存在安全域名，没有则添加到文本内容中
+		if !strings.Contains(text, c.securityURL) {
+			text = text + " " + c.securityURL
+		}
+		// 检查是否更新token
+		if err := c.UpdateToken(); err != nil {
+			log.Println("[ERROR] weibocron UpdateToken error for job", weiboJob.Name, err)
+			fmt.Fprintln(w, err)
+			return
+		}
+		// 发送微博
+		resp, err := c.weibo.StatusesShare(c.token.AccessToken, text, pic)
+		if err != nil {
+			log.Println("[ERROR] weibocron StatusesShare error for job", weiboJob.Name, err, resp)
+			fmt.Fprintln(w, err)
+			return
+		}
+		weiboURL := "http://weibo.com/" + resp.User.ProfileURL
+		response := fmt.Sprintf(`<p>任务: %s 执行完成. 访问 <a href="%s">%s 查看详情</p>`, weiboJob.Name, weiboURL, weiboURL)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprintln(w, response)
+		return
+	}
+	return handler
+}
+
 // RegisterWeiboJobs 注册微博任务
 func (c *CronWeibo) RegisterWeiboJobs(weiboJobs ...WeiboJob) {
+	handlersList := ""
 	for _, job := range weiboJobs {
 		// job转换为cronFunc
 		cronFunc := c.cronFuncFactory(job)
@@ -176,12 +221,46 @@ func (c *CronWeibo) RegisterWeiboJobs(weiboJobs ...WeiboJob) {
 		} else {
 			log.Println("[DEBUG] cronweibo added cron func:", job.Name, "as", job.Schedule)
 		}
+		// 注册HTTP接口
+		if c.httpServer != nil {
+			handleFunc := c.handlerFactory(job)
+			c.httpServer.HandleFunc("/"+job.Name, handleFunc)
+			handlersList += fmt.Sprintf(`<li><a href="/%s" target="blank">%s</a></li>`, job.Name, job.Name)
+		}
 	}
+	// 如果注册HTTP结构会生成接口列表，根url返回接口列表页面
+	if handlersList != "" {
+		handlersList = "<ul>" + handlersList + "</ul>"
+		c.httpServer.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			fmt.Fprintln(w, handlersList)
+			return
+		})
+	}
+}
+
+// addr转url
+func (c *CronWeibo) addr2URL(addr string) string {
+	s := strings.Split(addr, ":")
+	if len(s) == 2 {
+		port := s[1]
+		return fmt.Sprintf("http://%s:%s", weibo.RealIP(), port)
+	}
+	return addr
 }
 
 // Start 启动定时微博服务
 func (c *CronWeibo) Start() {
-	log.Println("[INFO] cronweibo is running...")
+	// 启动 HTTP server
+	if c.httpServer != nil {
+		go func() {
+			log.Println("[INFO] cronweibo start http server on", c.addr2URL(c.httpServerAddr))
+			if err := http.ListenAndServe(c.httpServerAddr, c.httpServer); err != nil {
+				log.Println("[ERROR] cronweibo start http server failed.", err)
+			}
+		}()
+	}
+	log.Println("[INFO] cronweibo is starting...")
 	c.cron.Start()
 	defer c.cron.Stop()
 	select {}
