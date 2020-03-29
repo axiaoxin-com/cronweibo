@@ -35,7 +35,7 @@ go get -u github.com/axiaoxin-com/cronweibo
 
 ## 在线文档
 
-<https://pkg.go.dev/github.com/axiaoxin-com/cronweibo?tab=doc>
+<https://godoc.org/github.com/axiaoxin-com/cronweibo>
 
 ## 使用示例
 
