@@ -303,3 +303,8 @@ func (c *CronWeibo) Start() {
 	defer c.cron.Stop()
 	select {}
 }
+
+// WeiboClient 返回当前 weibo client
+func (c *CronWeibo) WeiboClient() *weibo.Weibo {
+	return c.weibo
+}
