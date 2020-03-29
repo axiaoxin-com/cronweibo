@@ -308,3 +308,8 @@ func (c *CronWeibo) Start() {
 func (c *CronWeibo) WeiboClient() *weibo.Weibo {
 	return c.weibo
 }
+
+// Token 返回当前 token
+func (c *CronWeibo) Token() *weibo.TokenResp {
+	return c.token
+}
