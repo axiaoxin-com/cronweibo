@@ -190,6 +190,7 @@ func (c *CronWeibo) UpdateToken() error {
 // cronFuncFactory 将WeiboJob生产为cron的FuncJob
 func (c *CronWeibo) cronFuncFactory(weiboJob WeiboJob) cron.FuncJob {
 	cronFunc := func() {
+		log.Println("[INFO] cronweibo cron job", weiboJob.Name, "run.")
 		// 指定任务获取微博内容
 		text, pic := weiboJob.Run()
 		// 判断文本中是否存在安全域名，没有则添加到文本内容中
@@ -207,7 +208,7 @@ func (c *CronWeibo) cronFuncFactory(weiboJob WeiboJob) cron.FuncJob {
 			log.Println("[ERROR] weibocron StatusesShare error for job", weiboJob.Name, err, resp)
 			return
 		}
-		log.Println("[INFO] cronweibo job:", weiboJob.Name, "done.")
+		log.Println("[INFO] cronweibo cron job", weiboJob.Name, "done.")
 	}
 	return cronFunc
 }
@@ -215,7 +216,7 @@ func (c *CronWeibo) cronFuncFactory(weiboJob WeiboJob) cron.FuncJob {
 // handlerFactory 将WeiboJob生产为httpserver的handler
 func (c *CronWeibo) handlerFactory(weiboJob WeiboJob) http.HandlerFunc {
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		log.Println("[INFO] cronweibo is doing job:", weiboJob.Name, "from", r.RemoteAddr)
+		log.Println("[INFO] cronweibo handler job", weiboJob.Name, "run by", r.RemoteAddr)
 		// 指定任务获取微博内容
 		text, pic := weiboJob.Run()
 		// 判断文本中是否存在安全域名，没有则添加到文本内容中
@@ -239,6 +240,7 @@ func (c *CronWeibo) handlerFactory(weiboJob WeiboJob) http.HandlerFunc {
 		response := fmt.Sprintf(`<p>任务: %s 执行完成. 访问 <a href="%s">%s</a> 查看详情</p>`, weiboJob.Name, weiboURL, weiboURL)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprintln(w, response)
+		log.Println("[INFO] cronweibo handler job", weiboJob.Name, "done.")
 		return
 	}
 	return handler
@@ -254,7 +256,7 @@ func (c *CronWeibo) RegisterWeiboJobs(weiboJobs ...WeiboJob) {
 		if err := c.cron.AddFunc(job.Schedule, cronFunc); err != nil {
 			log.Println("[ERROR] cronweibo add cron func error:", err)
 		} else {
-			log.Println("[DEBUG] cronweibo added cron func:", job.Name, "as", job.Schedule)
+			log.Println("[DEBUG] cronweibo added cron func", job.Name, "as", job.Schedule)
 		}
 		// 注册HTTP接口
 		if c.httpServer != nil {
