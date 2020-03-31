@@ -202,7 +202,7 @@ func (c *CronWeibo) cronFuncFactory(weiboJob WeiboJob) cron.FuncJob {
 		text, pic := weiboJob.Run()
 		// 判断文本中是否存在安全域名，没有则添加到文本内容中
 		if !strings.Contains(text, c.securityURL) {
-			text = text + " " + c.securityURL
+			text = text + "\n" + c.securityURL
 		}
 		// 检查是否更新token
 		if err := c.UpdateToken(); err != nil {
@@ -228,7 +228,7 @@ func (c *CronWeibo) weiboJobHandlerFactory(weiboJob WeiboJob) http.HandlerFunc {
 		text, pic := weiboJob.Run()
 		// 判断文本中是否存在安全域名，没有则添加到文本内容中
 		if !strings.Contains(text, c.securityURL) {
-			text = text + " " + c.securityURL
+			text = text + "\n" + c.securityURL
 		}
 		// 检查是否更新token
 		if err := c.UpdateToken(); err != nil {
