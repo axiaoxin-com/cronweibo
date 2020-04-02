@@ -5,7 +5,6 @@ package cronweibo
 import (
 	"fmt"
 	"log"
-	"net/http"
 
 	"github.com/robfig/cron"
 )
@@ -37,13 +36,5 @@ func (c *CronWeibo) RegisterCronJobs(cronJobs ...CronJob) {
 			handlersList += fmt.Sprintf(`<li><a href="/cron/%s" target="blank">%s</a></li>`, job.Name, job.Name)
 		}
 	}
-	// 如果注册HTTP结构会生成接口列表，根url返回接口列表页面
-	if handlersList != "" {
-		handlersList = "<p><b>" + c.appname + "cron job list:</b></p><ol>" + handlersList + "</ol>"
-		c.httpServer.HandleFunc("/cron", func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			fmt.Fprintln(w, handlersList)
-			return
-		})
-	}
+	c.cronjobHTML += handlersList
 }

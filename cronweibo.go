@@ -45,6 +45,8 @@ type CronWeibo struct {
 	httpServerAddr    string
 	basicAuthUsername string
 	basicAuthPasswd   string
+	cronjobHTML       string
+	weibojobHTML      string
 }
 
 // Config CronWeibo配置定义，New函数的参数
@@ -220,19 +222,11 @@ func (c *CronWeibo) RegisterWeiboJobs(weiboJobs ...WeiboJob) {
 				handleFunc = HandlerAuth(handleFunc, c.basicAuthUsername, c.basicAuthPasswd)
 			}
 			c.httpServer.HandleFunc("/weibo/"+job.Name, handleFunc)
-			log.Println("[DEBUG] cronweibo added http weibo func", job.Name, "as", job.Schedule, c.appname)
+			log.Println("[DEBUG] cronweibo added http weibo func", job.Name, c.appname)
 			handlersList += fmt.Sprintf(`<li><a href="/weibo/%s" target="blank">%s</a></li>`, job.Name, job.Name)
 		}
 	}
-	// 如果注册HTTP结构会生成接口列表，根url返回接口列表页面
-	if handlersList != "" {
-		handlersList = "<p><b>" + c.appname + "weibo job list:</b></p><ol>" + handlersList + "</ol>"
-		c.httpServer.HandleFunc("/weibo", func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			fmt.Fprintln(w, handlersList)
-			return
-		})
-	}
+	c.weibojobHTML += handlersList
 }
 
 // addr转url
@@ -251,8 +245,8 @@ func (c *CronWeibo) Start() {
 	if c.httpServer != nil {
 		go func() {
 			// 添加首页导航页面
-			index := `<li><a href="/weibo">weibo job list</a></li>`
-			index += `<li><a href="/cron">cron job list</a></li>`
+			index := "<p>weibo jobs</p><ul>" + c.weibojobHTML + "</ul>"
+			index += "<p>cron jobs</p><ul>" + c.cronjobHTML + "</ul>"
 			c.httpServer.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "text/html; charset=utf-8")
 				fmt.Fprintln(w, index)
