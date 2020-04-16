@@ -22,6 +22,7 @@ func main() {
 	// 创建配置
 	loc, _ := time.LoadLocation("Asia/Shanghai")
 	config := &cronweibo.Config{
+		AppName:           "example",
 		WeiboAppkey:       appkey,
 		WeiboAppsecret:    appsecret,
 		WeiboUsername:     username,

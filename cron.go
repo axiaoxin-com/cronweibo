@@ -4,8 +4,8 @@ package cronweibo
 
 import (
 	"fmt"
-	"log"
 
+	"github.com/axiaoxin-com/logging"
 	"github.com/robfig/cron/v3"
 )
 
@@ -22,9 +22,9 @@ func (c *CronWeibo) RegisterCronJobs(cronJobs ...CronJob) {
 	for _, job := range cronJobs {
 		// 注册定时任务
 		if entryID, err := c.cron.AddFunc(job.Schedule, job.Run); err != nil {
-			log.Println("[ERROR] cronweibo add cron normal func error:", err, c.appname)
+			logging.Errorw(nil, "Cron AddFunc return error", "err", err, "appname", c.appname)
 		} else {
-			log.Println("[DEBUG] cronweibo added cron normal func", job.Name, "as", job.Schedule, c.appname, entryID)
+			logging.Debugw(nil, "Cron AddFunc successful", "jobName", job.Name, "jobSchedule", job.Schedule, "appname", c.appname, "entryID", entryID)
 		}
 		// 注册HTTP接口
 		if c.httpServer != nil {
