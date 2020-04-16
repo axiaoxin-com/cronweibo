@@ -47,7 +47,7 @@ func main() {
 	// 创建任务
 	helloWorldJob := cronweibo.WeiboJob{
 		Name:     "helloworld",
-		Schedule: "0 */2 * * * *", // 每2分钟一次
+		Schedule: "@every 2m", // 每2分钟一次
 		Run:      f,
 	}
 

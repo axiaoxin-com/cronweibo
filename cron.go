@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/robfig/cron"
+	"github.com/robfig/cron/v3"
 )
 
 // CronJob 默认的普通定时任务
@@ -21,10 +21,10 @@ func (c *CronWeibo) RegisterCronJobs(cronJobs ...CronJob) {
 	handlersList := ""
 	for _, job := range cronJobs {
 		// 注册定时任务
-		if err := c.cron.AddFunc(job.Schedule, job.Run); err != nil {
+		if entryID, err := c.cron.AddFunc(job.Schedule, job.Run); err != nil {
 			log.Println("[ERROR] cronweibo add cron normal func error:", err, c.appname)
 		} else {
-			log.Println("[DEBUG] cronweibo added cron normal func", job.Name, "as", job.Schedule, c.appname)
+			log.Println("[DEBUG] cronweibo added cron normal func", job.Name, "as", job.Schedule, c.appname, entryID)
 		}
 		// 注册HTTP接口
 		if c.httpServer != nil {

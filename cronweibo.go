@@ -27,7 +27,7 @@ import (
 
 	"github.com/axiaoxin-com/weibo"
 	"github.com/pkg/errors"
-	"github.com/robfig/cron"
+	"github.com/robfig/cron/v3"
 )
 
 // CronWeibo 定时微博服务定义
@@ -118,7 +118,7 @@ func New(config *Config, weiboJobs ...WeiboJob) (*CronWeibo, error) {
 	if loc == nil {
 		loc = time.Now().Location()
 	}
-	c := cron.NewWithLocation(loc)
+	c := cron.New(cron.WithLocation(loc))
 
 	// 创建CronWeibo
 	cw := &CronWeibo{
@@ -210,10 +210,10 @@ func (c *CronWeibo) RegisterWeiboJobs(weiboJobs ...WeiboJob) {
 		// job转换为cronFunc
 		cronFunc := c.cronFuncFactory(job)
 		// 注册定时任务
-		if err := c.cron.AddFunc(job.Schedule, cronFunc); err != nil {
+		if entryID, err := c.cron.AddFunc(job.Schedule, cronFunc); err != nil {
 			log.Println("[ERROR] cronweibo add cron weibo func error:", err, c.appname)
 		} else {
-			log.Println("[DEBUG] cronweibo added cron weibo func", job.Name, "as", job.Schedule, c.appname)
+			log.Println("[DEBUG] cronweibo added cron weibo func", job.Name, "as", job.Schedule, c.appname, entryID)
 		}
 		// 注册HTTP接口
 		if c.httpServer != nil {
