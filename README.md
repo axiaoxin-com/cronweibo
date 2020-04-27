@@ -55,6 +55,7 @@ import (
 	"github.com/axiaoxin-com/cronweibo"
 )
 
+// 定时发送hello world文字到微博示例
 func main() {
 	// 从环境变量获取配置信息
 	appkey := os.Getenv("weibo_app_key")
@@ -67,6 +68,7 @@ func main() {
 	// 创建配置
 	loc, _ := time.LoadLocation("Asia/Shanghai")
 	config := &cronweibo.Config{
+		AppName:           "example",
 		WeiboAppkey:       appkey,
 		WeiboAppsecret:    appsecret,
 		WeiboUsername:     username,
@@ -92,7 +94,7 @@ func main() {
 	// 创建任务
 	helloWorldJob := cronweibo.WeiboJob{
 		Name:     "helloworld",
-		Schedule: "0 */2 * * * *", // 每2分钟一次
+		Schedule: "@every 2m", // 每2分钟一次
 		Run:      f,
 	}
 
@@ -106,4 +108,4 @@ func main() {
 
 ## 他们在用
 
-- [cuitclock](https://github.com/axiaoxin-com/cuitclock)
+- [v-bot](https://github.com/axiaoxin-com/v-bot)
