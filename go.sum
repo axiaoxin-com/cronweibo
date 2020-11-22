@@ -42,6 +42,8 @@ github.com/axiaoxin-com/logging v1.2.7 h1:AmREhGLzB8evDDiXyvlmSkJ8yyawP8tpLC7nwP
 github.com/axiaoxin-com/logging v1.2.7/go.mod h1:Jx322YD47doa/j9kn3pNPntze8b9bOVxf3So0LmdRMg=
 github.com/axiaoxin-com/weibo v1.0.6-0.20201122133745-1658fe4f7be2 h1:11jKwNmOuLLgj/bGNRywNT/ggLrY9moNSky/CFF0Lgs=
 github.com/axiaoxin-com/weibo v1.0.6-0.20201122133745-1658fe4f7be2/go.mod h1:XJoZDBHfJkYgJVb0LcERxqU2HS3ly9xLpr3TxzxH36M=
+github.com/axiaoxin-com/weibo v1.0.7-0.20201122142502-e5b7a0609044 h1:byMBhLZPx+w3ROiij0eJmnlK27B49uxcdLjkLcBqfU8=
+github.com/axiaoxin-com/weibo v1.0.7-0.20201122142502-e5b7a0609044/go.mod h1:XJoZDBHfJkYgJVb0LcERxqU2HS3ly9xLpr3TxzxH36M=
 github.com/aymerick/raymond v2.0.3-0.20180322193309-b565731e1464+incompatible/go.mod h1:osfaiScAUVup+UC9Nfq76eWqDhXlp+4UYaA8uhTBO6g=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
 github.com/beorn7/perks v1.0.0/go.mod h1:KWe93zE9D1o94FZ5RNwFwVgaQK1VOXiVxmqh+CedLV8=
