@@ -34,7 +34,7 @@ import (
 type CronWeibo struct {
 	appname           string
 	weibo             *weibo.Weibo
-	token             *weibo.TokenResp
+	token             *weibo.RespToken
 	tokenCreatedAt    int64
 	tokenUpdateMutex  sync.Mutex
 	securityURL       string
@@ -99,7 +99,7 @@ func New(config *Config, weiboJobs ...WeiboJob) (*CronWeibo, error) {
 	// 注册验证码破解函数
 	weibo.RegisterCrackPinFunc(config.WeiboPinCrackFuncs...)
 	// 登录微博获取accesstoken
-	if err := weibo.PCLogin(); err != nil {
+	if err := weibo.QRLogin(); err != nil {
 		return nil, errors.Wrap(err, "cronweibo login weibo error")
 	}
 	code, err := weibo.Authorize()
@@ -270,6 +270,6 @@ func (c *CronWeibo) WeiboClient() *weibo.Weibo {
 }
 
 // Token 返回当前 token
-func (c *CronWeibo) Token() *weibo.TokenResp {
+func (c *CronWeibo) Token() *weibo.RespToken {
 	return c.token
 }
