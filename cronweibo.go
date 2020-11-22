@@ -160,8 +160,8 @@ func (c *CronWeibo) UpdateToken() error {
 	logging.Debugf(nil, "Check token age=%d, ExpiresIn=%d", age, c.token.ExpiresIn)
 	// 过期则更新token
 	if age >= c.token.ExpiresIn {
-		if err := c.weibo.PCLogin(); err != nil {
-			return errors.Wrap(err, "weiboclock UpdateToken PCLogin error")
+		if err := c.weibo.QRLogin(); err != nil {
+			return errors.Wrap(err, "weiboclock UpdateToken QRLogin error")
 		}
 		code, err := c.weibo.Authorize()
 		if err != nil {
@@ -187,11 +187,11 @@ func (c *CronWeibo) cronFuncFactory(weiboJob WeiboJob) cron.FuncJob {
 		if !strings.Contains(text, c.securityURL) {
 			text = text + "\n" + c.securityURL
 		}
-		// 检查是否更新token
-		if err := c.UpdateToken(); err != nil {
-			logging.Errorw(nil, "UpdateToken return error", "jobName", weiboJob.Name, "appname", c.appname, "err", err)
-			return
-		}
+		// // 检查是否更新token
+		// if err := c.UpdateToken(); err != nil {
+		//     logging.Errorw(nil, "UpdateToken return error", "jobName", weiboJob.Name, "appname", c.appname, "err", err)
+		//     return
+		// }
 		// 发送微博
 		resp, err := c.weibo.StatusesShare(c.token.AccessToken, text, pic)
 		if err != nil {
