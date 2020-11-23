@@ -33,6 +33,8 @@ func main() {
 		HTTPServerAddr:    ":2222",
 		BasicAuthUsername: "admin",
 		BasicAuthPasswd:   "admin",
+		RetryCount:        3,
+		RetryDuration:     time.Second * 2,
 	}
 
 	// 创建定时微博服务

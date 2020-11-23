@@ -22,15 +22,15 @@ func (c *CronWeibo) RegisterCronJobs(cronJobs ...CronJob) {
 	for _, job := range cronJobs {
 		// 注册定时任务
 		if entryID, err := c.cron.AddFunc(job.Schedule, job.Run); err != nil {
-			logging.Errorw(nil, "Cron AddFunc return error", "err", err, "appname", c.appname)
+			logging.Errorw(nil, "Cron AddFunc return error", "err", err, "appname", c.config.AppName)
 		} else {
-			logging.Debugw(nil, "Cron AddFunc successful", "jobName", job.Name, "jobSchedule", job.Schedule, "appname", c.appname, "entryID", entryID)
+			logging.Debugw(nil, "Cron AddFunc successful", "jobName", job.Name, "jobSchedule", job.Schedule, "appname", c.config.AppName, "entryID", entryID)
 		}
 		// 注册HTTP接口
 		if c.httpServer != nil {
 			handleFunc := c.cronJobHandlerFactory(job)
-			if c.basicAuthUsername != "" && c.basicAuthPasswd != "" {
-				handleFunc = HandlerAuth(handleFunc, c.basicAuthUsername, c.basicAuthPasswd)
+			if c.config.BasicAuthUsername != "" && c.config.BasicAuthPasswd != "" {
+				handleFunc = HandlerAuth(handleFunc, c.config.BasicAuthUsername, c.config.BasicAuthPasswd)
 			}
 			c.httpServer.HandleFunc("/cron/"+job.Name, handleFunc)
 			handlersList += fmt.Sprintf(`<li><a href="/cron/%s" target="blank">%s</a></li>`, job.Name, job.Name)

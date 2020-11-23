@@ -28,12 +28,12 @@ func HandlerAuth(handler http.HandlerFunc, username, passwd string) http.Handler
 // weiboJobHandlerFactory 将WeiboJob生产为httpserver的handler
 func (c *CronWeibo) weiboJobHandlerFactory(weiboJob WeiboJob) http.HandlerFunc {
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		logging.Infow(nil, "WeiboJob http.HandlerFunc is running", "jobName", weiboJob.Name, "remoteAddr", r.RemoteAddr, "appname", c.appname)
+		logging.Infow(nil, "WeiboJob http.HandlerFunc is running", "jobName", weiboJob.Name, "remoteAddr", r.RemoteAddr, "appname", c.config.AppName)
 		// 指定任务获取微博内容
 		text, pic := weiboJob.Run()
 		// 判断文本中是否存在安全域名，没有则添加到文本内容中
-		if !strings.Contains(text, c.securityURL) {
-			text = text + "\n" + c.securityURL
+		if !strings.Contains(text, c.config.WeiboSecurityURL) {
+			text = text + "\n" + c.config.WeiboSecurityURL
 		}
 		// 检查是否更新token
 		if err := c.UpdateToken(); err != nil {
@@ -49,10 +49,10 @@ func (c *CronWeibo) weiboJobHandlerFactory(weiboJob WeiboJob) http.HandlerFunc {
 			return
 		}
 		weiboURL := "http://weibo.com/" + resp.User.ProfileURL
-		response := fmt.Sprintf(`<p>%sweibo任务: %s 执行完成. 访问 <a href="%s">%s</a> 查看详情</p>`, c.appname, weiboJob.Name, weiboURL, weiboURL)
+		response := fmt.Sprintf(`<p>%sweibo任务: %s 执行完成. 访问 <a href="%s">%s</a> 查看详情</p>`, c.config.AppName, weiboJob.Name, weiboURL, weiboURL)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprintln(w, response)
-		logging.Infow(nil, "Handle weibojob by HTTP done", "jobName", weiboJob.Name, "appname", c.appname)
+		logging.Infow(nil, "Handle weibojob by HTTP done", "jobName", weiboJob.Name, "appname", c.config.AppName)
 		return
 	}
 	return handler
@@ -61,13 +61,13 @@ func (c *CronWeibo) weiboJobHandlerFactory(weiboJob WeiboJob) http.HandlerFunc {
 // cronJobHandlerFactory 将CronJob生产为httpserver的handler
 func (c *CronWeibo) cronJobHandlerFactory(cronJob CronJob) http.HandlerFunc {
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		logging.Infow(nil, "CronJob http.HandlerFunc is running", "jobName", cronJob.Name, "remoteAddr", r.RemoteAddr, "appname", c.appname)
+		logging.Infow(nil, "CronJob http.HandlerFunc is running", "jobName", cronJob.Name, "remoteAddr", r.RemoteAddr, "appname", c.config.AppName)
 		// 执行任务
 		cronJob.Run()
-		response := fmt.Sprintf(`<p>%scron任务: %s 执行完成.</p>`, c.appname, cronJob.Name)
+		response := fmt.Sprintf(`<p>%scron任务: %s 执行完成.</p>`, c.config.AppName, cronJob.Name)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprintln(w, response)
-		logging.Infow(nil, "Handle cronjob by HTTP done", "jobName", cronJob.Name, "appname", c.appname)
+		logging.Infow(nil, "Handle cronjob by HTTP done", "jobName", cronJob.Name, "appname", c.config.AppName)
 		return
 	}
 	return handler

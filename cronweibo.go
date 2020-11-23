@@ -32,21 +32,16 @@ import (
 
 // CronWeibo 定时微博服务定义
 type CronWeibo struct {
-	appname           string
-	weibo             *weibo.Weibo
-	token             *weibo.RespToken
-	tokenCreatedAt    int64
-	tokenUpdateMutex  sync.Mutex
-	securityURL       string
-	cron              *cron.Cron
-	weiboJobs         []WeiboJob
-	location          *time.Location
-	httpServer        *http.ServeMux
-	httpServerAddr    string
-	basicAuthUsername string
-	basicAuthPasswd   string
-	cronjobHTML       string
-	weibojobHTML      string
+	weibo            *weibo.Weibo
+	token            *weibo.RespToken
+	tokenCreatedAt   int64
+	tokenUpdateMutex sync.Mutex
+	cron             *cron.Cron
+	weiboJobs        []WeiboJob
+	httpServer       *http.ServeMux
+	cronjobHTML      string
+	weibojobHTML     string
+	config           *Config
 }
 
 // Config CronWeibo配置定义，New函数的参数
@@ -64,9 +59,11 @@ type Config struct {
 	Location *time.Location // 指定定时服务的时区（非必填）
 
 	// HTTP server 相关配置
-	HTTPServerAddr    string // HTTP 服务运行地址 （非必填），设置后会运行HTTP服务提供 GET 方式请求 http://host:port/jobname 可立即执行任务
-	BasicAuthUsername string // 和 BasicAuthPasswd 同时配置时，会对所有的HTTP接口进行基础认证（非必填）
-	BasicAuthPasswd   string // 和 BasicAuthUsername 同时配置时，会对所有的HTTP接口进行基础认证（非必填）
+	HTTPServerAddr    string        // HTTP 服务运行地址 （非必填），设置后会运行HTTP服务提供 GET 方式请求 http://host:port/jobname 可立即执行任务
+	BasicAuthUsername string        // 和 BasicAuthPasswd 同时配置时，会对所有的HTTP接口进行基础认证（非必填）
+	BasicAuthPasswd   string        // 和 BasicAuthUsername 同时配置时，会对所有的HTTP接口进行基础认证（非必填）
+	RetryCount        int           // 任务失败重试次数
+	RetryDuration     time.Duration // 任务失败重试时间间隔
 }
 
 // WeiboJobFunc 微博任务函数类型声明
@@ -114,29 +111,23 @@ func New(config *Config, weiboJobs ...WeiboJob) (*CronWeibo, error) {
 	logging.Debugs(nil, "Get weibo access token:", token)
 
 	// 创建带时区的cron实例
-	loc := config.Location
-	if loc == nil {
-		loc = time.Now().Location()
+	if config.Location == nil {
+		config.Location = time.Now().Location()
 	}
-	c := cron.New(cron.WithLocation(loc))
+	c := cron.New(cron.WithLocation(config.Location))
 
 	// 创建CronWeibo
 	cw := &CronWeibo{
-		appname:           config.AppName,
-		weibo:             weibo,
-		token:             token,
-		securityURL:       config.WeiboSecurityURL,
-		cron:              c,
-		location:          loc,
-		basicAuthUsername: config.BasicAuthUsername,
-		basicAuthPasswd:   config.BasicAuthPasswd,
+		weibo:  weibo,
+		token:  token,
+		cron:   c,
+		config: config,
 	}
 	cw.tokenCreatedAt = cw.Now().Unix()
 
 	// 如果配置了HTTPServerAddr，会实例化http server，服务启动后会运行一个http服务提供web api执行任务
 	if config.HTTPServerAddr != "" {
 		cw.httpServer = http.NewServeMux()
-		cw.httpServerAddr = config.HTTPServerAddr
 	}
 	logging.Info(nil, "New CronWeibo initialize successful.")
 	return cw, nil
@@ -145,7 +136,7 @@ func New(config *Config, weiboJobs ...WeiboJob) (*CronWeibo, error) {
 // Now 获取CronWeibo中的当前时间
 // 应用中需要获取当前时间请使用该方法保证时间时区正确
 func (c *CronWeibo) Now() time.Time {
-	now := time.Now().In(c.location)
+	now := time.Now().In(c.config.Location)
 	return now
 }
 
@@ -172,7 +163,7 @@ func (c *CronWeibo) UpdateToken() error {
 			return errors.Wrap(err, "weiboclock UpdateToken AccessToken error")
 		}
 		c.token = token
-		logging.Infos(nil, "CronWeibo ", c.appname, " token will expire, set a new token:", token)
+		logging.Infos(nil, "CronWeibo ", c.config.AppName, " token will expire, set a new token:", token)
 	}
 	return nil
 }
@@ -180,12 +171,12 @@ func (c *CronWeibo) UpdateToken() error {
 // cronFuncFactory 将WeiboJob生产为cron的FuncJob
 func (c *CronWeibo) cronFuncFactory(weiboJob WeiboJob) cron.FuncJob {
 	cronFunc := func() {
-		logging.Infow(nil, "cron.FuncJob is running", "jobName", weiboJob.Name, "appname", c.appname)
+		logging.Infow(nil, "cron.FuncJob is running", "jobName", weiboJob.Name, "appname", c.config.AppName)
 		// 指定任务获取微博内容
 		text, pic := weiboJob.Run()
 		// 判断文本中是否存在安全域名，没有则添加到文本内容中
-		if !strings.Contains(text, c.securityURL) {
-			text = text + "\n" + c.securityURL
+		if !strings.Contains(text, c.config.WeiboSecurityURL) {
+			text = text + "\n" + c.config.WeiboSecurityURL
 		}
 		// // 检查是否更新token
 		// if err := c.UpdateToken(); err != nil {
@@ -193,12 +184,16 @@ func (c *CronWeibo) cronFuncFactory(weiboJob WeiboJob) cron.FuncJob {
 		//     return
 		// }
 		// 发送微博
-		resp, err := c.weibo.StatusesShare(c.token.AccessToken, text, pic)
-		if err != nil {
-			logging.Errorw(nil, "weibo StatusesShare return error", "jobName", weiboJob.Name, "err", err, "resp", resp, "appname", c.appname)
-			return
+		for i := 0; i < c.config.RetryCount+1; i++ {
+			resp, err := c.weibo.StatusesShare(c.token.AccessToken, text, pic)
+			if err != nil {
+				logging.Errorw(nil, "weibo StatusesShare return error", "jobName", weiboJob.Name, "err", err, "resp", resp, "appname", c.config.AppName)
+				time.Sleep(c.config.RetryDuration)
+				continue
+			}
+			break
 		}
-		logging.Infow(nil, "cron.FUncJob done", "jobName", weiboJob.Name, "appname", c.appname)
+		logging.Infow(nil, "cron.FuncJob done", "jobName", weiboJob.Name, "appname", c.config.AppName)
 	}
 	return cronFunc
 }
@@ -211,18 +206,18 @@ func (c *CronWeibo) RegisterWeiboJobs(weiboJobs ...WeiboJob) {
 		cronFunc := c.cronFuncFactory(job)
 		// 注册定时任务
 		if entryID, err := c.cron.AddFunc(job.Schedule, cronFunc); err != nil {
-			logging.Errorw(nil, "cron AddFunc return error", "err", err, "appname", c.appname, "jobName", job.Name)
+			logging.Errorw(nil, "cron AddFunc return error", "err", err, "appname", c.config.AppName, "jobName", job.Name)
 		} else {
-			logging.Debugw(nil, "cron AddFunc successful", "jobName", job.Name, "jobSchedule", job.Schedule, "appname", c.appname, "entryID", entryID)
+			logging.Debugw(nil, "cron AddFunc successful", "jobName", job.Name, "jobSchedule", job.Schedule, "appname", c.config.AppName, "entryID", entryID)
 		}
 		// 注册HTTP接口
 		if c.httpServer != nil {
 			handleFunc := c.weiboJobHandlerFactory(job)
-			if c.basicAuthUsername != "" && c.basicAuthPasswd != "" {
-				handleFunc = HandlerAuth(handleFunc, c.basicAuthUsername, c.basicAuthPasswd)
+			if c.config.BasicAuthUsername != "" && c.config.BasicAuthPasswd != "" {
+				handleFunc = HandlerAuth(handleFunc, c.config.BasicAuthUsername, c.config.BasicAuthPasswd)
 			}
 			c.httpServer.HandleFunc("/weibo/"+job.Name, handleFunc)
-			logging.Debugw(nil, "Register HTTP HandleFunc successful", "jobName", job.Name, "appname", c.appname)
+			logging.Debugw(nil, "Register HTTP HandleFunc successful", "jobName", job.Name, "appname", c.config.AppName)
 			handlersList += fmt.Sprintf(`<li><a href="/weibo/%s" target="blank">%s</a></li>`, job.Name, job.Name)
 		}
 	}
@@ -252,13 +247,13 @@ func (c *CronWeibo) Start() {
 				fmt.Fprintln(w, index)
 				return
 			})
-			logging.Infos(nil, "Start HTTP server on ", c.addr2URL(c.httpServerAddr), " for ", c.appname)
-			if err := http.ListenAndServe(c.httpServerAddr, c.httpServer); err != nil {
-				logging.Errorw(nil, "Start HTTP server error.", "err", err, "appname", c.appname)
+			logging.Infos(nil, "Start HTTP server on ", c.addr2URL(c.config.HTTPServerAddr), " for ", c.config.AppName)
+			if err := http.ListenAndServe(c.config.HTTPServerAddr, c.httpServer); err != nil {
+				logging.Errorw(nil, "Start HTTP server error.", "err", err, "appname", c.config.AppName)
 			}
 		}()
 	}
-	logging.Infos(nil, "CronWeibo is starting ", c.appname)
+	logging.Infos(nil, "CronWeibo is starting ", c.config.AppName)
 	c.cron.Start()
 	defer c.cron.Stop()
 	select {}
