@@ -50,6 +50,8 @@ github.com/axiaoxin-com/weibo v1.0.7-0.20201122144128-176ef3c8fbd1 h1:DN+b/+MVFa
 github.com/axiaoxin-com/weibo v1.0.7-0.20201122144128-176ef3c8fbd1/go.mod h1:XJoZDBHfJkYgJVb0LcERxqU2HS3ly9xLpr3TxzxH36M=
 github.com/axiaoxin-com/weibo v1.0.7-0.20201123010947-195aab23ec4f h1:3rjNuQKFuLzWM5YKItJYgwqfObz7qkwZVWCZ0cw9kbY=
 github.com/axiaoxin-com/weibo v1.0.7-0.20201123010947-195aab23ec4f/go.mod h1:BT0JsLnAmDIYfRHqKdR3I0zVuZ2OomUNaEnAjkVD1tg=
+github.com/axiaoxin-com/weibo v1.0.7-0.20201123021852-bcf4f185ff5c h1:DBwV84iuaFskUmTVMv2gq354nsM5yxTfgOgqaXAqFps=
+github.com/axiaoxin-com/weibo v1.0.7-0.20201123021852-bcf4f185ff5c/go.mod h1:BT0JsLnAmDIYfRHqKdR3I0zVuZ2OomUNaEnAjkVD1tg=
 github.com/aymerick/raymond v2.0.3-0.20180322193309-b565731e1464+incompatible/go.mod h1:osfaiScAUVup+UC9Nfq76eWqDhXlp+4UYaA8uhTBO6g=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
 github.com/beorn7/perks v1.0.0/go.mod h1:KWe93zE9D1o94FZ5RNwFwVgaQK1VOXiVxmqh+CedLV8=
